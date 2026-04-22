@@ -348,6 +348,8 @@ class VideosKwargs(TypedDict, total=False):
             If set, will return tensors of a particular framework. Acceptable values are:
             - `'pt'`: Return PyTorch `torch.Tensor` objects.
             - `'np'`: Return NumPy `np.ndarray` objects.
+        video_device (`str`, *optional*):
+            The preferred device to use for video processing (e.g. "cpu", "xpu", "cuda").
     """
 
     do_convert_rgb: bool | None
@@ -372,6 +374,7 @@ class VideosKwargs(TypedDict, total=False):
     num_frames: Annotated[int | None, positive_int()]
     return_metadata: bool | None
     return_tensors: Annotated[str | TensorType | None, tensor_type_validator()]
+    video_device: str | None
 
 
 class AudioKwargs(TypedDict, total=False):

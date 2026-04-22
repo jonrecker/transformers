@@ -51,6 +51,11 @@ if is_vision_available():
 if is_torch_available():
     import torch
 
+# Try to load XPU support if available
+try:
+    import torchcodec_xpu
+except ImportError:
+    pass  # XPU support not available
 
 logger = logging.get_logger(__name__)
 
