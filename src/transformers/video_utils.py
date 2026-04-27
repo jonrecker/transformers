@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 
 import httpx
 import numpy as np
+import time as _time
 
 from .image_transforms import PaddingMode, to_channel_dimension_format
 from .image_utils import ChannelDimension, infer_channel_dimension_format, is_valid_image
@@ -599,13 +600,14 @@ def read_video_torchcodec(
 
     # VideoDecoder expects a string for device, default to "cpu" if None
 
+    device=kwargs.get("device", "cpu")
     decoder = VideoDecoder(
         video_path,
         # Interestingly `exact` mode takes less than approximate when we load the whole video
         seek_mode="exact",
         # Allow FFmpeg decide on the number of threads for efficiency
         num_ffmpeg_threads=0,
-        device=kwargs.get("device", "cpu"),
+        device=device,
     )
     total_num_frames = decoder.metadata.num_frames
     video_fps = decoder.metadata.average_fps
@@ -619,8 +621,22 @@ def read_video_torchcodec(
     )
 
     indices = sample_indices_fn(metadata=metadata, **kwargs)
+
+    # decode frames
+    _t0 = _time.perf_counter()
     video = decoder.get_frames_at(indices=indices).data.contiguous()
+    _t1 = _time.perf_counter()
+
+    video_perf_log = kwargs.get("video_perf_log", None)
+    if video_perf_log:
+        with open(video_perf_log, 'a') as f:
+            msec_total = (_t1 - _t0) * 1000.0
+            msec_per_frame = msec_total / len(indices)
+            print(f"TorchCodec -- device = {device}", file=f)
+            print(f"  decoder.get_frames_at = {msec_per_frame:.2f} ms / frame", file=f)
+
     metadata.frames_indices = indices
+
     return video, metadata
 
 

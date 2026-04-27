@@ -350,6 +350,8 @@ class VideosKwargs(TypedDict, total=False):
             - `'np'`: Return NumPy `np.ndarray` objects.
         video_device (`str`, *optional*):
             The preferred device to use for video processing (e.g. "cpu", "xpu", "cuda").
+        video_perf_log (`str`, *optional*):
+            Name of a logfile to store video performance stats.
     """
 
     do_convert_rgb: bool | None
@@ -375,6 +377,7 @@ class VideosKwargs(TypedDict, total=False):
     return_metadata: bool | None
     return_tensors: Annotated[str | TensorType | None, tensor_type_validator()]
     video_device: str | None
+    video_perf_log: str | None
 
 
 class AudioKwargs(TypedDict, total=False):
