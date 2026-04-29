@@ -262,7 +262,7 @@ class BaseVideoProcessor(TorchvisionBackend):
         do_sample_frames: bool | None = None,
         sample_indices_fn: Callable | None = None,
         video_device: str | None = None,
-        video_perf_log: str | None = None,
+        video_processor_options: dict | None = None,
     ) -> list["torch.Tensor"]:
         """
         Decode input videos and sample frames if needed.
@@ -293,7 +293,7 @@ class BaseVideoProcessor(TorchvisionBackend):
                         "Sampling frames from a list of images is not supported! Set `do_sample_frames=False`."
                     )
             else:
-                videos, video_metadata = self.fetch_videos(videos, sample_indices_fn=sample_indices_fn, video_device=video_device, video_perf_log=video_perf_log)
+                videos, video_metadata = self.fetch_videos(videos, sample_indices_fn=sample_indices_fn, video_device=video_device, video_processor_options=video_processor_options)
 
         return videos, video_metadata
 
@@ -352,7 +352,7 @@ class BaseVideoProcessor(TorchvisionBackend):
         device = kwargs.pop("device")
         video_metadata = kwargs.pop("video_metadata")
         video_device = kwargs.pop("video_device")
-        video_perf_log = kwargs.pop("video_perf_log")
+        video_processor_options = kwargs.pop("video_processor_options")
 
         sample_indices_fn = partial(self.sample_frames, **kwargs) if do_sample_frames else None
         videos, video_metadata = self._decode_and_sample_videos(
@@ -361,7 +361,7 @@ class BaseVideoProcessor(TorchvisionBackend):
             do_sample_frames=do_sample_frames,
             sample_indices_fn=sample_indices_fn,
             video_device=video_device,
-            video_perf_log=video_perf_log,
+            video_processor_options=video_processor_options,
         )
         videos = self._prepare_input_videos(videos=videos, input_data_format=input_data_format, device=device)
 
@@ -823,7 +823,7 @@ class BaseVideoProcessor(TorchvisionBackend):
 
         cls._auto_class = auto_class
 
-    def fetch_videos(self, video_url_or_urls: str | list[str] | list[list[str]], sample_indices_fn=None, video_device: str | None = None, video_perf_log: str | None = None):
+    def fetch_videos(self, video_url_or_urls: str | list[str] | list[list[str]], sample_indices_fn=None, video_device: str | None = None, video_processor_options: dict | None = None):
         """
         Convert a single or a list of urls into the corresponding `np.array` objects.
 
@@ -839,9 +839,9 @@ class BaseVideoProcessor(TorchvisionBackend):
             backend = "torchvision"
 
         if isinstance(video_url_or_urls, list):
-            return list(zip(*[self.fetch_videos(x, sample_indices_fn=sample_indices_fn, video_device=video_device, video_perf_log=video_perf_log) for x in video_url_or_urls]))
+            return list(zip(*[self.fetch_videos(x, sample_indices_fn=sample_indices_fn, video_device=video_device, video_processor_options=video_processor_options) for x in video_url_or_urls]))
         else:
-            return load_video(video_url_or_urls, backend=backend, sample_indices_fn=sample_indices_fn, device=video_device, video_perf_log=video_perf_log)
+            return load_video(video_url_or_urls, backend=backend, sample_indices_fn=sample_indices_fn, device=video_device, video_processor_options=video_processor_options)
 
 
 BaseVideoProcessor.push_to_hub = copy_func(BaseVideoProcessor.push_to_hub)
