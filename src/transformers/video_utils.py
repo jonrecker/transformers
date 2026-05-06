@@ -601,9 +601,13 @@ def read_video_torchcodec(
     # Caller may optionally pass extra options to torchcodec in video_processor_options
     video_processor_options = kwargs.get("video_processor_options", None)
     perf_log = video_processor_options.get("perf_log", None) if video_processor_options else None
+    enable_perf_timing = int(video_processor_options.get("enable_perf_timing", 0)) if video_processor_options else 0
 
     # VideoDecoder expects a string for device, default to "cpu" if None
     device=kwargs.get("device", "cpu")
+
+    print(f"Starting VideoDecoder on {device}")
+
     decoder = VideoDecoder(
         video_path,
         # Interestingly `exact` mode takes less than approximate when we load the whole video
@@ -611,6 +615,7 @@ def read_video_torchcodec(
         # Allow FFmpeg decide on the number of threads for efficiency
         num_ffmpeg_threads=0,
         device=device,
+        enable_perf_timing=enable_perf_timing,
     )
     total_num_frames = decoder.metadata.num_frames
     video_fps = decoder.metadata.average_fps
@@ -626,8 +631,13 @@ def read_video_torchcodec(
     indices = sample_indices_fn(metadata=metadata, **kwargs)
 
     # decode frames
+    frames_output = None
     t0 = time.perf_counter()
-    video = decoder.get_frames_at(indices=indices).data.contiguous()
+    if enable_perf_timing:
+        frames_output = decoder.get_frames_at(indices=indices)
+        video = frames_output.data.contiguous()
+    else:
+        video = decoder.get_frames_at(indices=indices).data.contiguous()
     t1 = time.perf_counter()
 
     # save average decode time to perf_log
@@ -636,7 +646,15 @@ def read_video_torchcodec(
             msec_total = (t1 - t0) * 1000.0
             msec_per_frame = msec_total / len(indices)
             print(f"TorchCodec -- device = {device}", file=f)
-            print(f"  decoder.get_frames_at = {msec_per_frame:.2f} ms / frame", file=f)
+            print(f"  decoder.get_frames_at = {msec_total: 7.2f} msec", file=f)
+            print(f"                        = {msec_per_frame: 7.2f} msec / frame", file=f)
+
+            if enable_perf_timing:
+                perf_data = frames_output.get_perf_data()
+                print(f"  ---------------------------------------", file=f)
+                for k, v in perf_data.items():
+                    time_msec = float(v) / 1000.0
+                    print(f"  {k}: {time_msec: 7.2f}", file=f)
 
     metadata.frames_indices = indices
 
