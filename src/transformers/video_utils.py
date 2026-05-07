@@ -601,7 +601,8 @@ def read_video_torchcodec(
     # Caller may optionally pass extra options to torchcodec in video_processor_options
     video_processor_options = kwargs.get("video_processor_options", None)
     perf_log = video_processor_options.get("perf_log", None) if video_processor_options else None
-    enable_perf_timing = int(video_processor_options.get("enable_perf_timing", 0)) if video_processor_options else 0
+    enable_perf_timing = video_processor_options.get("enable_perf_timing", 0) if video_processor_options else 0
+    require_contiguous_output = video_processor_options.get("require_contiguous_output", False) if video_processor_options else 0
 
     # VideoDecoder expects a string for device, default to "cpu" if None
     device=kwargs.get("device", "cpu")
@@ -631,13 +632,15 @@ def read_video_torchcodec(
     indices = sample_indices_fn(metadata=metadata, **kwargs)
 
     # decode frames
-    frames_output = None
     t0 = time.perf_counter()
-    if enable_perf_timing:
-        frames_output = decoder.get_frames_at(indices=indices)
+    frames_output = decoder.get_frames_at(indices=indices)
+
+    # forcing contiguous may add a copy
+    if require_contiguous_output:
         video = frames_output.data.contiguous()
     else:
-        video = decoder.get_frames_at(indices=indices).data.contiguous()
+        video = frames_output.data
+
     t1 = time.perf_counter()
 
     # save average decode time to perf_log
