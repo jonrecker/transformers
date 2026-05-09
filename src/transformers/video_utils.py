@@ -90,6 +90,7 @@ class VideoMetadata(Mapping):
     duration: float | None = None
     video_backend: str | None = None
     frames_indices: list[int] | None = None
+    perf_data: dict | None = None
 
     def __iter__(self):
         return (f.name for f in fields(self))
@@ -600,7 +601,6 @@ def read_video_torchcodec(
 
     # Caller may optionally pass extra options to torchcodec in video_processor_options
     video_processor_options = kwargs.get("video_processor_options", None)
-    perf_log = video_processor_options.get("perf_log", None) if video_processor_options else None
     enable_perf_timing = video_processor_options.get("enable_perf_timing", 0) if video_processor_options else 0
     require_contiguous_output = video_processor_options.get("require_contiguous_output", False) if video_processor_options else 0
 
@@ -643,22 +643,20 @@ def read_video_torchcodec(
 
     t1 = time.perf_counter()
 
-    # save average decode time to perf_log
-    if perf_log:
-        with open(perf_log, 'a') as f:
-            msec_total = (t1 - t0) * 1000.0
-            msec_per_frame = msec_total / len(indices)
-            print(f"TorchCodec -- device = {device}", file=f)
-            print(f"  decoder.get_frames_at = {msec_total: 7.2f} msec", file=f)
-            print(f"                        = {msec_per_frame: 7.2f} msec / frame", file=f)
+    # save average decode time perf_data
+    perf_data = {}
+    if enable_perf_timing:
+        # save high-level metrics
+        msec_total = (t1 - t0) * 1000.0
+        num_frames = len(indices)
+        perf_video_utils = {"msec_total": msec_total, "num_frames": num_frames}
+        perf_data["perf_video_utils"] = perf_video_utils
 
-            if enable_perf_timing:
-                perf_data = frames_output.get_perf_data()
-                print(f"  ---------------------------------------", file=f)
-                for k, v in perf_data.items():
-                    time_msec = float(v) / 1000.0
-                    print(f"  {k}: {time_msec: 7.2f}", file=f)
+        # save low-level torchcodec metrics
+        perf_torchcodec = frames_output.get_perf_data()
+        perf_data["perf_torchcodec"] = perf_torchcodec
 
+    metadata.perf_data = perf_data
     metadata.frames_indices = indices
 
     return video, metadata
