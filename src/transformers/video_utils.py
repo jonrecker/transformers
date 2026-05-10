@@ -597,27 +597,36 @@ def read_video_torchcodec(
     """
     # Lazy import torchcodec
     requires_backends(read_video_torchcodec, ["torchcodec"])
-    from torchcodec.decoders import VideoDecoder
+    from torchcodec.decoders import VideoDecoder, set_cuda_backend
 
     # Caller may optionally pass extra options to torchcodec in video_processor_options
     video_processor_options = kwargs.get("video_processor_options", None)
     enable_perf_timing = video_processor_options.get("enable_perf_timing", 0) if video_processor_options else 0
     require_contiguous_output = video_processor_options.get("require_contiguous_output", False) if video_processor_options else 0
+    enable_beta_backend = video_processor_options.get("enable_beta_backend", False) if video_processor_options else 0
 
     # VideoDecoder expects a string for device, default to "cpu" if None
     device=kwargs.get("device", "cpu")
 
     print(f"Starting VideoDecoder on {device}")
 
-    decoder = VideoDecoder(
-        video_path,
-        # Interestingly `exact` mode takes less than approximate when we load the whole video
-        seek_mode="exact",
-        # Allow FFmpeg decide on the number of threads for efficiency
-        num_ffmpeg_threads=0,
-        device=device,
-        enable_perf_timing=enable_perf_timing,
-    )
+    def _create_decoder():
+        return VideoDecoder(
+            video_path,
+            # Interestingly `exact` mode takes less than approximate when we load the whole video
+            seek_mode="exact",
+            # Allow FFmpeg decide on the number of threads for efficiency
+            num_ffmpeg_threads=0,
+            device=device,
+            enable_perf_timing=enable_perf_timing,
+        )
+
+    if enable_beta_backend:
+        with set_cuda_backend("beta"):
+            decoder = _create_decoder()
+    else:
+        decoder = _create_decoder()
+
     total_num_frames = decoder.metadata.num_frames
     video_fps = decoder.metadata.average_fps
     metadata = VideoMetadata(
